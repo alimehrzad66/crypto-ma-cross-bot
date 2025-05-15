@@ -1,27 +1,20 @@
-name: Run Crypto MA Cross Bot every hour
+name: Run Crypto MA Cross Bot every 20 minutes
 
 on:
   schedule:
-    - cron: '0 * * * *'  # هر ساعت در دقیقه ۰ اجرا میشه
-  workflow_dispatch:  # اجازه اجرای دستی هم می‌ده
+    - cron: '*/20 * * * *'
+  workflow_dispatch:
 
 jobs:
-  run-script:
+  run-bot:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout repo
-      uses: actions/checkout@v3
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: 3.x
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install numpy requests
-
-    - name: Run script
-      run: python main.py
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: pip install requests numpy
+      - name: Run python script
+        run: python main.py
