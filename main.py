@@ -1,55 +1,52 @@
 import requests
-import numpy as np
 
-TOKEN = "8092692270:AAE1AATHk0Qyg_okjktO2gShivQNFInfCLs"
-CHAT_ID = "431116432"
+BOT_TOKEN = '8092692270:AAE1AATHk0Qyg_okjktO2gShivQNFInfCLs'
+CHAT_ID = '431116432'
 
-SYMBOLS = [
-    "BTCUSDT", "ETHUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT",
-    "SOLUSDT", "AVAXUSDT", "DOGEUSDT", "MATICUSDT", "DOTUSDT",
-    "SHIBUSDT", "LTCUSDT", "TRXUSDT", "LINKUSDT", "ATOMUSDT",
-    "UNIUSDT", "ICPUSDT", "FILUSDT", "APTUSDT", "NEARUSDT"
-]
+NOBITEX_API_URL = 'https://api.nobitex.ir/market/stats'
 
-def get_klines(symbol):
-    url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=15m&limit=30"
-    response = requests.get(url)
-    try:
-        data = response.json()
-    except Exception as e:
-        print(f"{symbol} JSON decode error:", e)
-        return []
 
-    if not isinstance(data, list):
-        print(f"{symbol} Unexpected response:", data)
-        return []
+def get_market_stats():
+    response = requests.post(NOBITEX_API_URL, data={'srcCurrency': 'btc', 'dstCurrency': 'rls'})
+    if response.status_code != 200:
+        return None
 
-    closes = [float(candle[4]) for candle in data]
-    return closes
+    response = requests.post(NOBITEX_API_URL)
+    if response.status_code != 200:
+        return None
+    
+    data = response.json()
+    if 'stats' not in data:
+        return None
 
-def moving_average(data, period):
-    return np.convolve(data, np.ones(period)/period, mode='valid')
+    stats = data['stats']
+    changes = []
+    for symbol, info in stats.items():
+        if '24h' in info and 'change' in info['24h']:
+            percent_change = info['24h']['change'] * 100
+            changes.append(f"{symbol.upper()}: {percent_change:.2f}%")
+    return changes
 
-def send_telegram_message(text):
-    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    requests.post(url, data={"chat_id": CHAT_ID, "text": text})
+
+def send_to_telegram(message):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    payload = {
+        'chat_id': CHAT_ID,
+        'text': message
+    }
+    response = requests.post(url, data=payload)
+    return response.status_code == 200
+
 
 def main():
-    for symbol in SYMBOLS:
-        closes = get_klines(symbol)
-        if not closes:
-            continue
+    stats = get_market_stats()
+    if stats is None:
+        send_to_telegram("❌ خطا در دریافت اطلاعات از نوبیتکس")
+        return
 
-        ma9 = moving_average(closes, 9)
-        ma21 = moving_average(closes, 21)
+    message = "📊 تغییرات ۲۴ ساعته بازار نوبیتکس:\n\n" + "\n".join(stats)
+    send_to_telegram(message)
 
-        if len(ma9) < 2 or len(ma21) < 2:
-            continue
 
-        if ma9[-2] < ma21[-2] and ma9[-1] > ma21[-1]:
-            send_telegram_message(f"{symbol} 📈 کراس صعودی")
-        elif ma9[-2] > ma21[-2] and ma9[-1] < ma21[-1]:
-            send_telegram_message(f"{symbol} 📉 کراس نزولی")
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
