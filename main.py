@@ -1,52 +1,25 @@
 import requests
 
-BOT_TOKEN = '8092692270:AAE1AATHk0Qyg_okjktO2gShivQNFInfCLs'
-CHAT_ID = '431116432'
-
-NOBITEX_API_URL = 'https://api.nobitex.ir/market/stats'
-
-
-def get_market_stats():
-    response = requests.post(NOBITEX_API_URL, data={'srcCurrency': 'btc', 'dstCurrency': 'rls'})
-    if response.status_code != 200:
+def get_bitpin_tickers():
+    url = "https://api.bitpin.ir/v1/market/tickers"
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+    except requests.RequestException as e:
+        print(f"خطا در دریافت اطلاعات از بیت‌پین: {e}")
         return None
 
-    response = requests.post(NOBITEX_API_URL)
-    if response.status_code != 200:
-        return None
-    
-    data = response.json()
-    if 'stats' not in data:
+    # داده ها معمولا در کلید 'tickers' هستند، بسته به ساختار JSON می‌تونی چک کنی
+    if 'tickers' not in data:
+        print("کلید 'tickers' در پاسخ موجود نیست.")
         return None
 
-    stats = data['stats']
-    changes = []
-    for symbol, info in stats.items():
-        if '24h' in info and 'change' in info['24h']:
-            percent_change = info['24h']['change'] * 100
-            changes.append(f"{symbol.upper()}: {percent_change:.2f}%")
-    return changes
+    tickers = data['tickers']
+    for ticker in tickers:
+        symbol = ticker.get('symbol', 'N/A')
+        last_price = ticker.get('last', 'N/A')
+        print(f"{symbol}: {last_price}")
 
-
-def send_to_telegram(message):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    payload = {
-        'chat_id': CHAT_ID,
-        'text': message
-    }
-    response = requests.post(url, data=payload)
-    return response.status_code == 200
-
-
-def main():
-    stats = get_market_stats()
-    if stats is None:
-        send_to_telegram("❌ خطا در دریافت اطلاعات از نوبیتکس")
-        return
-
-    message = "📊 تغییرات ۲۴ ساعته بازار نوبیتکس:\n\n" + "\n".join(stats)
-    send_to_telegram(message)
-
-
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    get_bitpin_tickers()
