@@ -4,7 +4,7 @@ import pandas as pd
 # تنظیمات
 BOT_TOKEN = '8092692270:AAE1AATHk0Qyg_okjktO2gShivQNFInfCLs'
 CHAT_ID = '431116432'
-TD_API_KEY = 'YOUR_TWELVEDATA_API_KEY'  # 🔁 اینجا کلید خودت رو بذار
+TD_API_KEY = 'cbb117052e324d43bdd5172b796b45ea'  # 🔁 اینجا کلید خودت رو بذار
 
 # مرحله 1: ارزهای با رشد بیش از 5٪ از CoinGecko
 def get_top_gainers_from_coingecko(threshold=5):
