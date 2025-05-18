@@ -4,10 +4,17 @@ import requests
 BOT_TOKEN = '8092692270:AAE1AATHk0Qyg_okjktO2gShivQNFInfCLs'
 CHAT_ID = '431116432'
 
-# 1. گرفتن داده از بایننس
-def get_binance_tickers():
-    url = 'https://api.binance.com/api/v3/ticker/24hr'
-    response = requests.get(url)
+# 1. گرفتن داده از CoinGecko
+def get_coingecko_tickers():
+    url = 'https://api.coingecko.com/api/v3/coins/markets'
+    params = {
+        'vs_currency': 'usd',
+        'order': 'market_cap_desc',
+        'per_page': 250,
+        'page': 1,
+        'price_change_percentage': '24h'
+    }
+    response = requests.get(url, params=params)
     response.raise_for_status()
     return response.json()
 
@@ -15,11 +22,9 @@ def get_binance_tickers():
 def filter_top_gainers(tickers, threshold=5.0):
     gainers = []
     for ticker in tickers:
-        symbol = ticker['symbol']
-        price_change_percent = float(ticker['priceChangePercent'])
-
-        if price_change_percent >= threshold:
-            gainers.append((symbol, price_change_percent))
+        change_24h = ticker.get('price_change_percentage_24h', 0)
+        if change_24h and change_24h >= threshold:
+            gainers.append((ticker['symbol'].upper(), change_24h))
     return gainers
 
 # 3. ارسال پیام به تلگرام
@@ -34,7 +39,7 @@ def send_to_telegram(message):
 
 # 4. اجرای مراحل
 def main():
-    tickers = get_binance_tickers()
+    tickers = get_coingecko_tickers()
     gainers = filter_top_gainers(tickers)
 
     if not gainers:
