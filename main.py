@@ -1,52 +1,49 @@
 import requests
 
+# تنظیمات تلگرام
 BOT_TOKEN = '8092692270:AAE1AATHk0Qyg_okjktO2gShivQNFInfCLs'
 CHAT_ID = '431116432'
-LBANK_API_URL = 'https://api.lbank.info/v2/ticker.do?symbol=all'
 
-def get_lbank_tickers():
-    try:
-        response = requests.get(LBANK_API_URL, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-    except requests.RequestException as e:
-        print(f"خطا در دریافت اطلاعات از LBank: {e}")
-        return None
+# 1. گرفتن داده از بایننس
+def get_binance_tickers():
+    url = 'https://api.binance.com/api/v3/ticker/24hr'
+    response = requests.get(url)
+    response.raise_for_status()
+    return response.json()
 
-    if data.get('result') != 'true' or 'data' not in data:
-        print("پاسخ نامعتبر از LBank.")
-        return None
-
-    tickers = data['data']
-    changes = []
+# 2. فیلتر ارزهایی با تغییر مثبت بیشتر از 5٪
+def filter_top_gainers(tickers, threshold=5.0):
+    gainers = []
     for ticker in tickers:
-        symbol = ticker.get('symbol', '').upper()
-        change_percent = ticker.get('change', 0) * 100  # تبدیل به درصد
-        changes.append(f"{symbol}: {change_percent:.2f}%")
+        symbol = ticker['symbol']
+        price_change_percent = float(ticker['priceChangePercent'])
 
-    return changes
+        if price_change_percent >= threshold:
+            gainers.append((symbol, price_change_percent))
+    return gainers
 
+# 3. ارسال پیام به تلگرام
 def send_to_telegram(message):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    url = f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage'
     payload = {
         'chat_id': CHAT_ID,
-        'text': message
+        'text': message,
+        'parse_mode': 'Markdown'
     }
-    try:
-        response = requests.post(url, data=payload)
-        response.raise_for_status()
-        return True
-    except requests.RequestException as e:
-        print(f"خطا در ارسال پیام به تلگرام: {e}")
-        return False
+    requests.post(url, data=payload)
 
+# 4. اجرای مراحل
 def main():
-    changes = get_lbank_tickers()
-    if changes is None:
-        send_to_telegram("❌ خطا در دریافت اطلاعات از LBank")
-        return
+    tickers = get_binance_tickers()
+    gainers = filter_top_gainers(tickers)
 
-    message = "📊 تغییرات ۲۴ ساعته بازار LBank:\n\n" + "\n".join(changes)
+    if not gainers:
+        message = "🚫 هیچ ارزی با رشد بیش از ۵٪ در ۲۴ ساعت گذشته پیدا نشد."
+    else:
+        message = "📈 *ارزهای با رشد بیش از ۵٪ در ۲۴ ساعت گذشته:*\n"
+        for symbol, change in gainers:
+            message += f"• `{symbol}` ➜ +{change:.2f}%\n"
+
     send_to_telegram(message)
 
 if __name__ == '__main__':
